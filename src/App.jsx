@@ -9,19 +9,21 @@ const ANSWER_KEYS = {
 };
 
 const SUBJECT_META = {
-  헌법: { count: 25, lines: 5, color: "#E8453C" },
-  언어논리: { count: 40, lines: 8, color: "#2D7FF9" },
-  자료해석: { count: 40, lines: 8, color: "#18BFFF" },
-  상황판단: { count: 40, lines: 8, color: "#FF6F2C" },
+  헌법: { count: 25, lines: 5, color: "#E8453C", pointsPerQ: 4, passCut: 60 },
+  언어논리: { count: 40, lines: 8, color: "#2D7FF9", pointsPerQ: 2.5 },
+  자료해석: { count: 40, lines: 8, color: "#18BFFF", pointsPerQ: 2.5 },
+  상황판단: { count: 40, lines: 8, color: "#FF6F2C", pointsPerQ: 2.5 },
 };
 
-const POINTS_PER_Q = 2.5;
+// 평균 계산 대상 과목 (헌법 제외)
+const AVG_SUBJECTS = ["언어논리", "자료해석", "상황판단"];
 
-function ScoreCircle({ score, max, color, label }) {
+function ScoreCircle({ score, max, color, label, passCut }) {
   const pct = max > 0 ? (score / max) * 100 : 0;
   const r = 54;
   const circ = 2 * Math.PI * r;
   const offset = circ - (pct / 100) * circ;
+  const isPass = passCut != null ? score >= passCut : null;
 
   return (
     <div style={{ textAlign: "center" }}>
@@ -41,6 +43,22 @@ function ScoreCircle({ score, max, color, label }) {
         </text>
       </svg>
       <div style={{ color: color, fontWeight: 700, fontSize: 14, marginTop: 4, fontFamily: "'Pretendard', sans-serif" }}>{label}</div>
+      {isPass != null && (
+        <div style={{
+          marginTop: 6,
+          display: "inline-block",
+          padding: "3px 14px",
+          borderRadius: 20,
+          fontSize: 12,
+          fontWeight: 800,
+          fontFamily: "'JetBrains Mono', monospace",
+          background: isPass ? "#4ade8022" : "#ff6b6b22",
+          color: isPass ? "#4ade80" : "#ff6b6b",
+          border: `1px solid ${isPass ? "#4ade8044" : "#ff6b6b44"}`,
+        }}>
+          {isPass ? "PASS" : "FAIL"}
+        </div>
+      )}
     </div>
   );
 }
@@ -84,6 +102,16 @@ function SubjectInput({ name, meta, value, onChange }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <span style={{ color: meta.color, fontWeight: 800, fontSize: 16, fontFamily: "'Pretendard', sans-serif" }}>
           {name}
+          {meta.passCut != null && (
+            <span style={{ fontSize: 11, color: "#666", fontWeight: 500, marginLeft: 8 }}>
+              (1문제 {meta.pointsPerQ}점 · {meta.passCut}점 이상 PASS)
+            </span>
+          )}
+          {meta.passCut == null && (
+            <span style={{ fontSize: 11, color: "#666", fontWeight: 500, marginLeft: 8 }}>
+              (1문제 {meta.pointsPerQ}점)
+            </span>
+          )}
         </span>
         <span style={{
           color: digitCount === meta.count ? "#4ade80" : "#666",
@@ -193,13 +221,14 @@ export default function App() {
       scores[name] = {
         correct,
         total: meta.count,
-        score: correct * POINTS_PER_Q,
-        max: meta.count * POINTS_PER_Q,
+        score: correct * meta.pointsPerQ,
+        max: meta.count * meta.pointsPerQ,
       };
     }
 
-    const allScores = Object.values(scores);
-    const avg = allScores.reduce((s, x) => s + x.score, 0) / allScores.length;
+    // 평균: 언어논리, 자료해석, 상황판단만
+    const avgScores = AVG_SUBJECTS.map((s) => scores[s]);
+    const avg = avgScores.reduce((s, x) => s + x.score, 0) / avgScores.length;
 
     setResults({ scores, parsed, avg });
     setShowDetail(false);
@@ -285,7 +314,7 @@ export default function App() {
               borderRadius: 20, border: "1px solid #1a1a3e",
             }}>
               <div style={{ fontSize: 12, color: "#888", letterSpacing: 3, marginBottom: 4, fontFamily: "'JetBrains Mono', monospace" }}>
-                AVERAGE
+                PSAT 평균 (언어·자료·상판)
               </div>
               <div style={{
                 fontSize: 56, fontWeight: 900, fontFamily: "'JetBrains Mono', monospace",
@@ -294,19 +323,51 @@ export default function App() {
               }}>
                 {results.avg.toFixed(2)}
               </div>
-              <div style={{ color: "#666", fontSize: 13 }}>4과목 평균</div>
+              <div style={{ color: "#666", fontSize: 13 }}>3과목 평균</div>
             </div>
 
-            {/* Score circles */}
+            {/* 헌법 Pass/Fail */}
             <div style={{
-              display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 24,
+              textAlign: "center", marginBottom: 24, padding: "18px 0",
+              background: "#0d0d1a", borderRadius: 16,
+              border: `1px solid ${SUBJECT_META.헌법.color}22`,
             }}>
-              {Object.entries(SUBJECT_META).map(([name, meta]) => (
+              <div style={{ fontSize: 12, color: "#888", letterSpacing: 2, marginBottom: 6, fontFamily: "'JetBrains Mono', monospace" }}>
+                헌법
+              </div>
+              <span style={{
+                fontSize: 32, fontWeight: 900, fontFamily: "'JetBrains Mono', monospace",
+                color: "#E8453C",
+              }}>
+                {results.scores.헌법.score.toFixed(0)}
+              </span>
+              <span style={{ fontSize: 16, color: "#666", fontFamily: "'JetBrains Mono', monospace" }}> / {results.scores.헌법.max}</span>
+              <div style={{
+                marginTop: 10,
+                display: "inline-block",
+                padding: "5px 24px",
+                borderRadius: 20,
+                fontSize: 15,
+                fontWeight: 800,
+                fontFamily: "'JetBrains Mono', monospace",
+                background: results.scores.헌법.score >= 60 ? "#4ade8022" : "#ff6b6b22",
+                color: results.scores.헌법.score >= 60 ? "#4ade80" : "#ff6b6b",
+                border: `1px solid ${results.scores.헌법.score >= 60 ? "#4ade8044" : "#ff6b6b44"}`,
+              }}>
+                {results.scores.헌법.score >= 60 ? "PASS" : "FAIL"}
+              </div>
+            </div>
+
+            {/* Score circles - PSAT 3과목 */}
+            <div style={{
+              display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 24,
+            }}>
+              {AVG_SUBJECTS.map((name) => (
                 <ScoreCircle
                   key={name}
                   score={results.scores[name].score}
                   max={results.scores[name].max}
-                  color={meta.color}
+                  color={SUBJECT_META[name].color}
                   label={name}
                 />
               ))}
@@ -385,7 +446,7 @@ export default function App() {
         )}
 
         <div style={{ textAlign: "center", marginTop: 48, color: "#333", fontSize: 11 }}>
-          한 문제당 2.5점 · 정답 미확정 시 임시정답 적용
+          헌법 1문제 4점 (60점 이상 PASS) · PSAT 1문제 2.5점 · 평균 = 언어+자료+상판
         </div>
       </div>
     </div>
