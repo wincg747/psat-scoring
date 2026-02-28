@@ -1,11 +1,23 @@
 import { useState, useRef, useCallback } from "react";
 
-// ─── 정답지 (기본값: 모두 1) ───
+// ─── 정답지 (2026 입법고시 1차 정답가안) ───
 const ANSWER_KEYS = {
-  헌법: "1111111111111111111111111",           // 25문제
-  언어논리: "1111111111111111111111111111111111111111", // 40문제
-  자료해석: "1111111111111111111111111111111111111111", // 40문제
-  상황판단: "1111111111111111111111111111111111111111", // 40문제
+  헌법: {
+    가: "4421252135242135245514132",
+    다: "1352455141324421252135242",
+  },
+  언어논리: {
+    가: "5145325143452131352415434342215343214325",
+    다: "1543434221534321432551453251434521313524",
+  },
+  자료해석: {
+    가: "4413234515154352512113155343243445521342",
+    다: "1315534324344552134244132345151543525121",
+  },
+  상황판단: {
+    가: "3253152124313211435454112413215512522445",
+    다: "5411241321551252244532531521243132114354",
+  },
 };
 
 const SUBJECT_META = {
@@ -15,55 +27,37 @@ const SUBJECT_META = {
   상황판단: { count: 40, lines: 8, color: "#FF6F2C", pointsPerQ: 2.5 },
 };
 
-// 평균 계산 대상 과목 (헌법 제외)
 const AVG_SUBJECTS = ["언어논리", "자료해석", "상황판단"];
+const BOOK_TYPES = ["가", "다"];
 
-function ScoreCircle({ score, max, color, label, passCut }) {
-  const pct = max > 0 ? (score / max) * 100 : 0;
-  const r = 54;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (pct / 100) * circ;
-  const isPass = passCut != null ? score >= passCut : null;
-
+function BookTypeSelector({ name, color, selected, onChange }) {
   return (
-    <div style={{ textAlign: "center" }}>
-      <svg width="130" height="130" viewBox="0 0 130 130">
-        <circle cx="65" cy="65" r={r} fill="none" stroke="#1a1a2e" strokeWidth="10" />
-        <circle
-          cx="65" cy="65" r={r} fill="none"
-          stroke={color} strokeWidth="10" strokeLinecap="round"
-          strokeDasharray={circ} strokeDashoffset={offset}
-          style={{ transition: "stroke-dashoffset 0.8s ease", transform: "rotate(-90deg)", transformOrigin: "center" }}
-        />
-        <text x="65" y="58" textAnchor="middle" fill="#fff" fontSize="28" fontWeight="700" fontFamily="'JetBrains Mono', monospace">
-          {score.toFixed(1)}
-        </text>
-        <text x="65" y="78" textAnchor="middle" fill="#666" fontSize="13" fontFamily="'JetBrains Mono', monospace">
-          / {max}
-        </text>
-      </svg>
-      <div style={{ color: color, fontWeight: 700, fontSize: 14, marginTop: 4, fontFamily: "'Pretendard', sans-serif" }}>{label}</div>
-      {isPass != null && (
-        <div style={{
-          marginTop: 6,
-          display: "inline-block",
-          padding: "3px 14px",
-          borderRadius: 20,
-          fontSize: 12,
-          fontWeight: 800,
-          fontFamily: "'JetBrains Mono', monospace",
-          background: isPass ? "#4ade8022" : "#ff6b6b22",
-          color: isPass ? "#4ade80" : "#ff6b6b",
-          border: `1px solid ${isPass ? "#4ade8044" : "#ff6b6b44"}`,
-        }}>
-          {isPass ? "PASS" : "FAIL"}
-        </div>
-      )}
+    <div style={{ display: "flex", gap: 6 }}>
+      {BOOK_TYPES.map((t) => (
+        <button
+          key={t}
+          onClick={() => onChange(t)}
+          style={{
+            padding: "4px 14px",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 700,
+            fontFamily: "'JetBrains Mono', monospace",
+            border: selected === t ? `2px solid ${color}` : "2px solid #222",
+            background: selected === t ? `${color}22` : "transparent",
+            color: selected === t ? color : "#555",
+            cursor: "pointer",
+            transition: "all 0.2s",
+          }}
+        >
+          {t}형
+        </button>
+      ))}
     </div>
   );
 }
 
-function SubjectInput({ name, meta, value, onChange }) {
+function SubjectInput({ name, meta, value, onChange, bookType, onBookTypeChange }) {
   const textareaRef = useRef(null);
   const placeholder = Array.from({ length: meta.lines }, (_, i) => {
     const start = i * 5 + 1;
@@ -100,19 +94,12 @@ function SubjectInput({ name, meta, value, onChange }) {
         background: `linear-gradient(90deg, ${meta.color}, ${meta.color}44)`,
       }} />
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <span style={{ color: meta.color, fontWeight: 800, fontSize: 16, fontFamily: "'Pretendard', sans-serif" }}>
-          {name}
-          {meta.passCut != null && (
-            <span style={{ fontSize: 11, color: "#666", fontWeight: 500, marginLeft: 8 }}>
-              (1문제 {meta.pointsPerQ}점 · {meta.passCut}점 이상 PASS)
-            </span>
-          )}
-          {meta.passCut == null && (
-            <span style={{ fontSize: 11, color: "#666", fontWeight: 500, marginLeft: 8 }}>
-              (1문제 {meta.pointsPerQ}점)
-            </span>
-          )}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ color: meta.color, fontWeight: 800, fontSize: 16, fontFamily: "'Pretendard', sans-serif" }}>
+            {name}
+          </span>
+          <BookTypeSelector name={name} color={meta.color} selected={bookType} onChange={onBookTypeChange} />
+        </div>
         <span style={{
           color: digitCount === meta.count ? "#4ade80" : "#666",
           fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
@@ -120,6 +107,12 @@ function SubjectInput({ name, meta, value, onChange }) {
         }}>
           {digitCount} / {meta.count}
         </span>
+      </div>
+      <div style={{ fontSize: 11, color: "#555", marginBottom: 8, fontFamily: "'Pretendard', sans-serif" }}>
+        {meta.passCut != null
+          ? `1문제 ${meta.pointsPerQ}점 · ${meta.passCut}점 이상 PASS`
+          : `1문제 ${meta.pointsPerQ}점`
+        }
       </div>
       <textarea
         ref={textareaRef}
@@ -154,7 +147,7 @@ function SubjectInput({ name, meta, value, onChange }) {
   );
 }
 
-function ResultDetail({ name, meta, userAnswers, answerKey }) {
+function ResultDetail({ name, meta, userAnswers, answerKey, bookType }) {
   const items = [];
   for (let i = 0; i < answerKey.length; i++) {
     const correct = answerKey[i];
@@ -169,8 +162,16 @@ function ResultDetail({ name, meta, userAnswers, answerKey }) {
       background: "#0d0d1a", borderRadius: 16, padding: "20px 24px",
       border: `1px solid ${meta.color}22`,
     }}>
-      <div style={{ color: meta.color, fontWeight: 800, fontSize: 15, marginBottom: 14, fontFamily: "'Pretendard', sans-serif" }}>
-        {name} — 오답 {wrongItems.length}개
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <span style={{ color: meta.color, fontWeight: 800, fontSize: 15, fontFamily: "'Pretendard', sans-serif" }}>
+          {name} — 오답 {wrongItems.length}개
+        </span>
+        <span style={{
+          fontSize: 11, color: "#666", fontFamily: "'JetBrains Mono', monospace",
+          background: "#1a1a2e", padding: "2px 10px", borderRadius: 6,
+        }}>
+          {bookType}형
+        </span>
       </div>
       {wrongItems.length === 0 ? (
         <div style={{ color: "#4ade80", fontSize: 14, fontFamily: "'Pretendard', sans-serif" }}>전문항 정답 🎉</div>
@@ -194,13 +195,46 @@ function ResultDetail({ name, meta, userAnswers, answerKey }) {
   );
 }
 
+function ScoreCircle({ score, max, color, label }) {
+  const pct = max > 0 ? (score / max) * 100 : 0;
+  const r = 54;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (pct / 100) * circ;
+
+  return (
+    <div style={{ textAlign: "center" }}>
+      <svg width="130" height="130" viewBox="0 0 130 130">
+        <circle cx="65" cy="65" r={r} fill="none" stroke="#1a1a2e" strokeWidth="10" />
+        <circle
+          cx="65" cy="65" r={r} fill="none"
+          stroke={color} strokeWidth="10" strokeLinecap="round"
+          strokeDasharray={circ} strokeDashoffset={offset}
+          style={{ transition: "stroke-dashoffset 0.8s ease", transform: "rotate(-90deg)", transformOrigin: "center" }}
+        />
+        <text x="65" y="58" textAnchor="middle" fill="#fff" fontSize="28" fontWeight="700" fontFamily="'JetBrains Mono', monospace">
+          {score.toFixed(1)}
+        </text>
+        <text x="65" y="78" textAnchor="middle" fill="#666" fontSize="13" fontFamily="'JetBrains Mono', monospace">
+          / {max}
+        </text>
+      </svg>
+      <div style={{ color: color, fontWeight: 700, fontSize: 14, marginTop: 4, fontFamily: "'Pretendard', sans-serif" }}>{label}</div>
+    </div>
+  );
+}
+
 export default function App() {
   const [inputs, setInputs] = useState({ 헌법: "", 언어논리: "", 자료해석: "", 상황판단: "" });
+  const [bookTypes, setBookTypes] = useState({ 헌법: "가", 언어논리: "가", 자료해석: "가", 상황판단: "가" });
   const [results, setResults] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
 
   const updateInput = useCallback((name, val) => {
     setInputs((prev) => ({ ...prev, [name]: val }));
+  }, []);
+
+  const updateBookType = useCallback((name, val) => {
+    setBookTypes((prev) => ({ ...prev, [name]: val }));
   }, []);
 
   const parseAnswers = (raw) => raw.replace(/[^1-5]/g, "");
@@ -211,7 +245,7 @@ export default function App() {
 
     for (const [name, meta] of Object.entries(SUBJECT_META)) {
       const userStr = parseAnswers(inputs[name]);
-      const keyStr = ANSWER_KEYS[name];
+      const keyStr = ANSWER_KEYS[name][bookTypes[name]];
       parsed[name] = userStr;
 
       let correct = 0;
@@ -226,11 +260,10 @@ export default function App() {
       };
     }
 
-    // 평균: 언어논리, 자료해석, 상황판단만
     const avgScores = AVG_SUBJECTS.map((s) => scores[s]);
     const avg = avgScores.reduce((s, x) => s + x.score, 0) / avgScores.length;
 
-    setResults({ scores, parsed, avg });
+    setResults({ scores, parsed, avg, bookTypes: { ...bookTypes } });
     setShowDetail(false);
   };
 
@@ -260,15 +293,15 @@ export default function App() {
             PSAT 채점기
           </div>
           <h1 style={{
-            fontSize: 32, fontWeight: 900, margin: 0,
+            fontSize: 30, fontWeight: 900, margin: 0,
             background: "linear-gradient(135deg, #E8453C, #2D7FF9, #18BFFF, #FF6F2C)",
             WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
             fontFamily: "'Noto Sans KR', sans-serif",
           }}>
-            5급 PSAT 채점
+            입법고시 1차 채점
           </h1>
           <p style={{ color: "#555", fontSize: 14, marginTop: 8 }}>
-            한 줄에 5개씩 답을 입력하세요
+            과목별 책형을 선택하고 답을 입력하세요
           </p>
         </div>
 
@@ -282,6 +315,8 @@ export default function App() {
                   meta={meta}
                   value={inputs[name]}
                   onChange={(v) => updateInput(name, v)}
+                  bookType={bookTypes[name]}
+                  onBookTypeChange={(t) => updateBookType(name, t)}
                 />
               ))}
             </div>
@@ -333,7 +368,7 @@ export default function App() {
               border: `1px solid ${SUBJECT_META.헌법.color}22`,
             }}>
               <div style={{ fontSize: 12, color: "#888", letterSpacing: 2, marginBottom: 6, fontFamily: "'JetBrains Mono', monospace" }}>
-                헌법
+                헌법 ({results.bookTypes.헌법}형)
               </div>
               <span style={{
                 fontSize: 32, fontWeight: 900, fontFamily: "'JetBrains Mono', monospace",
@@ -368,7 +403,7 @@ export default function App() {
                   score={results.scores[name].score}
                   max={results.scores[name].max}
                   color={SUBJECT_META[name].color}
-                  label={name}
+                  label={`${name} (${results.bookTypes[name]}형)`}
                 />
               ))}
             </div>
@@ -389,6 +424,9 @@ export default function App() {
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div style={{ width: 4, height: 24, borderRadius: 2, background: meta.color }} />
                       <span style={{ fontWeight: 700, fontSize: 14 }}>{name}</span>
+                      <span style={{ fontSize: 11, color: "#555", fontFamily: "'JetBrains Mono', monospace" }}>
+                        {results.bookTypes[name]}형
+                      </span>
                     </div>
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14 }}>
                       <span style={{ color: "#4ade80", fontWeight: 700 }}>{r.correct}</span>
@@ -423,7 +461,8 @@ export default function App() {
                     name={name}
                     meta={meta}
                     userAnswers={results.parsed[name]}
-                    answerKey={ANSWER_KEYS[name]}
+                    answerKey={ANSWER_KEYS[name][results.bookTypes[name]]}
+                    bookType={results.bookTypes[name]}
                   />
                 ))}
               </div>
